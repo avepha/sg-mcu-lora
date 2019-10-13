@@ -121,14 +121,15 @@ void loop() {
               raw[readIndex++] = 0xEF;
               Serial.print("RS485 Packet: ");
               for (int i = 0; i < readIndex; i++) {
-                Serial.print(raw[i], HEX); Serial.print(" ");
+                Serial.print(raw[i], HEX);
+                Serial.print(" ");
               }
               Serial.println();
 
               Serial.print("Sending Packet...");
               setLoRaMode(LORA_MODE_TRANSMITTER);
               rf95.send(raw, readIndex);
-              for (int i = 0 ; i < 2; i++) blinkLedBlue(30);
+              for (int i = 0; i < 2; i++) blinkLedBlue(30);
               rf95.waitPacketSent();
               setLoRaMode(LORA_MODE_RECEIVER);
               Serial.println("Success!");
