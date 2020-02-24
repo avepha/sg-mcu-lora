@@ -90,16 +90,20 @@ void loop() {
   delay(1000);
 #else
   if (rf95.available()) {
-    setLoRaMode(LORA_MODE_RECEIVER);
+    setLoRaMode(LORA_MODE_TRANSMITTER);
     uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
     uint8_t len = sizeof(buf);
 
     if (rf95.recv(buf, &len)) {
       digitalWrite(BLUE_LED, HIGH);
       Serial.print("Got: ");
-      Serial.println((char *) buf);
-      to485.println((char *) buf);
+      for (int i = 0 ; i < len; i++) {
+        Serial.print(buf[i], HEX); Serial.print(" ");
+      }
+      Serial.println();
+      to485.write(buf, len);
       digitalWrite(BLUE_LED, LOW);
+      setLoRaMode(LORA_MODE_RECEIVER);
     }
     else {
       blinkLedBlue(10);
