@@ -79,16 +79,6 @@ void setup() {
 }
 
 void loop() {
-#ifdef TRANSMITTER_TEST
-  setLoRaMode(LORA_MODE_TRANSMITTER);
-  digitalWrite(BLUE_LED, HIGH);
-  Serial.println("Sending to rf95_server");
-  uint8_t data[] = "SG-Hello";
-  rf95.send(data, sizeof(data));
-  rf95.waitPacketSent();
-  digitalWrite(BLUE_LED, LOW);
-  delay(1000);
-#else
   if (rf95.available()) {
     setLoRaMode(LORA_MODE_TRANSMITTER);
     uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
@@ -97,11 +87,12 @@ void loop() {
     if (rf95.recv(buf, &len)) {
       digitalWrite(BLUE_LED, HIGH);
       Serial.print("Got: ");
-      for (int i = 0 ; i < len; i++) {
+      for (int i = 0; i < len; i++) {
         Serial.print(buf[i], HEX); Serial.print(" ");
       }
       Serial.println();
       to485.write(buf, len);
+      delay(50);
       digitalWrite(BLUE_LED, LOW);
       setLoRaMode(LORA_MODE_RECEIVER);
     }
@@ -113,48 +104,27 @@ void loop() {
   if (to485.available()) {
     byte raw[64];
     int readIndex = 0;
-    while (to485.available()) {
-      if (to485.read() == 0xEE) {
-        raw[readIndex++] = 0xEE;
-        int loop = 0;
-        while (true) {
-          if (to485.available()) {
-            byte byteVal = to485.read();
+    uint32_t lastByteTs = micros();
+    while (true) {
+      if (to485.available()) {
+        raw[readIndex] = to485.read();
+        Serial.print(raw[readIndex], HEX);
+        Serial.print(" ");
+        readIndex++;
+        lastByteTs = micros();
+      }
 
-            if (byteVal == 0xEF) {
-              raw[readIndex++] = 0xEF;
-              Serial.print("RS485 Packet: ");
-              for (int i = 0; i < readIndex; i++) {
-                Serial.print(raw[i], HEX);
-                Serial.print(" ");
-              }
-              Serial.println();
-
-              Serial.print("Sending Packet...");
-              setLoRaMode(LORA_MODE_TRANSMITTER);
-              rf95.send(raw, readIndex);
-              for (int i = 0; i < 2; i++) blinkLedBlue(30);
-              rf95.waitPacketSent();
-              setLoRaMode(LORA_MODE_RECEIVER);
-              Serial.println("Success!");
-              return;
-            }
-            else {
-              raw[readIndex++] = byteVal;
-            }
-            loop = 0; // reset counter when data is coming
-          }
-          else {
-            // ensure this process can not hold resource more than 50ms
-            loop++;
-            delay(1);
-            if (loop >= 50) return;
-          }
-        }
+      if (micros() - lastByteTs >= 10000) {
+        Serial.println();
+        Serial.print("Sending Packet...");
+        setLoRaMode(LORA_MODE_TRANSMITTER);
+        rf95.send(raw, readIndex);
+        for (int i = 0; i < 2; i++) blinkLedBlue(30);
+        rf95.waitPacketSent();
+        setLoRaMode(LORA_MODE_RECEIVER);
+        Serial.println("Success!");
+        break;
       }
     }
   }
-
-  delay(100);
-#endif
 }
